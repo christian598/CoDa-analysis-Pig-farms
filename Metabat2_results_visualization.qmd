@@ -1,0 +1,53 @@
+---
+title: "metabat2"
+format: html
+editor: visual
+---
+
+# Load data
+
+```{r}
+quality <- read.delim("quality_report.tsv")
+```
+
+# Filter and plot
+
+```{r}
+quality <- quality |> mutate(quality_score = 
+                    ifelse(Completeness >= 95 & Contamination <= 5, "high quality","low Quality"),
+                  quality_score = 
+                    ifelse(Completeness <= 95 & Completeness >= 50 & Contamination < 10,"Medium quality",quality_score))
+
+table(quality$quality_score)
+```
+
+```{r}
+quality2 <- quality |> 
+  mutate(
+    quality_score = ifelse(Completeness >= 95 & Contamination <= 5, "high quality", "low Quality"),
+    quality_score = ifelse(Completeness <= 95 & Completeness >= 50 & Contamination < 10, "Medium quality", quality_score),
+    prefix = substr(Name, 1, 4)
+  ) |>
+  group_by(prefix, quality_score) |> 
+  summarise(count = n())
+
+  
+plot_bin <- quality2 |> ggplot(aes(x = prefix, y = count, fill = quality_score)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "Bin Quality Score Distribution",
+       subtitle = "Total bins: 455,
+       High quality: 9
+       Medium quality: 178
+       Low quality: 268",
+       x = "Sample",
+       y = "Bin Counts",
+       fill = "Bin Quality Score") +
+  scale_fill_manual(values = c("Medium quality" = "orange", "high quality" = "green", "low Quality" = "red")) +
+  facet_wrap(~quality2$quality_score,scales = "free") +
+    theme(
+    plot.title = element_text(size = 20, face = "bold"))
+
+plot_bin
+
+ggsave("plot_bin.png", plot = plot_bin, width = 8, height = 6, units = "in")
+```

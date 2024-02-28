@@ -1,0 +1,149 @@
+---
+title: "gtdb"
+format: html
+editor: visual
+---
+
+# Load libraries
+
+```{r}
+library("ggtree")
+library("ggplot2")
+library('tidyverse')
+```
+
+# Load data
+
+```{r}
+bac120_s <- read.delim("gtdbtk.bac120.summary.tsv")
+ar53 <- read.delim("gtdbtk.ar53.summary.tsv")
+
+bac120 <- rbind(bac120, ar53)
+
+```
+
+# Data wrangle
+
+```{r}
+data_split <- separate(bac120, classification, into = c("domain", "phylum", "class", "order", "family", "genus", "species"), sep = ";", remove = FALSE, fill = "right")
+```
+
+```{r}
+data_split$domain <- sub("^[a-z]__", "", data_split$domain)
+data_split$phylum <- sub("^[a-z]__", "", data_split$phylum)
+data_split$class <- sub("^[a-z]__", "", data_split$class)
+data_split$order <- sub("^[a-z]__", "", data_split$order)
+data_split$family <- sub("^[a-z]__", "", data_split$family)
+data_split$genus <- sub("^[a-z]__", "", data_split$genus)
+data_split$species <- sub("^[a-z]__", "", data_split$species)
+```
+
+```{r}
+bac120_final <- 
+  data_split |> 
+  select(user_genome, domain, phylum, class, order, family, genus, species, msa_percent, warnings)
+```
+
+```{r}
+bac120_final |> 
+  summarise(
+    NL_1001 = sum(grepl("^1001", user_genome)),
+    NL_1011 = sum(grepl("^1011", user_genome)),
+    DK_8020 = sum(grepl("^8020", user_genome)),
+    DK_8024 = sum(grepl("^8024", user_genome))
+  )
+```
+
+# Piechart
+
+```{r}
+
+ypos <- bac120_final |> filter(grepl("^1001|^1011", user_genome)) |> 
+  mutate(phylum = ifelse(phylum == "Firmicutes_A" | phylum == "Firmicutes_C", "Firmicutes", phylum))
+
+
+ypos2 <- table(data.frame(ypos$phylum))/nrow(ypos)*100
+ypos2 <- data.frame(ypos2) |> 
+  `colnames<-`(c("phylum","Freq"))
+```
+
+```{r}
+
+ypos2 |> 
+  ggplot(aes(x = "", y = Freq, fill = phylum)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  theme_void() +
+  geom_text(
+    aes(label = paste(round(Freq,1), "%")),
+    position = position_stack(vjust = 0.5),
+    color = "white",
+    size = 4
+  ) +
+  labs(title = "Phylum distribution in Netherlands",
+       fill = "Phylum")
+
+```
+
+```{r}
+ypos3 <- bac120_final |> filter(grepl("^8020|^8024", user_genome)) |> 
+  mutate(phylum = ifelse(phylum == "Firmicutes_A" | phylum == "Firmicutes_C", "Firmicutes", phylum))
+
+
+ypos4 <- table(data.frame(ypos3$phylum))
+ypos4 <- data.frame(ypos4) |> 
+  `colnames<-`(c("phylum","Freq"))
+```
+
+```{r}
+ypos4 |> 
+  ggplot(aes(x = "", y = Freq, fill = phylum)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  theme_void() +
+  geom_text(
+    aes(label = paste(round(Freq,1))),
+    position = position_stack(vjust = 0.5),
+    color = "white",
+    size = 4
+  ) +
+  labs(title = "Phylum distribution in Denmark",
+       fill = "Phylum")
+
+```
+
+# Possible new species
+
+```{r}
+bac120_final |> 
+  filter(species == "" & msa_percent >= 50 & warnings == "N/A") |> 
+  select(user_genome, domain,family,species,msa_percent,warnings)
+```
+
+# Test
+
+```{r}
+for_neaderlands <- bac120_final %>%
+  mutate(country = ifelse(grepl("^1",bac120_final$user_genome),"Denmark","Nederlands")) |> 
+  filter(country == "Nederlands") |> 
+  group_by(family) |> 
+  summarise("count" = n()) |> 
+  arrange(desc(count))
+
+for_Denmark <- bac120_final %>%
+  mutate(country = ifelse(grepl("^1",bac120_final$user_genome),"Denmark","Nederlands")) |> 
+  filter(country == "Denmark") |> 
+  group_by(family) |> 
+  summarise("count" = n()) |> 
+  arrange(desc(count))
+```
+
+```{r}
+fam1 <- bac120_final |> filter(grepl("^1001|^1011", user_genome)) |> 
+  mutate(phylum = ifelse(phylum == "Firmicutes_A" | phylum == "Firmicutes_C", "Firmicutes", phylum))
+
+
+ypos2 <- table(data.frame(ypos$phylum))/nrow(ypos)*100
+ypos2 <- data.frame(ypos2) |> 
+  `colnames<-`(c("phylum","Freq"))
+```
